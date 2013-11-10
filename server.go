@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"mime"
+	"io"
 )
 
 func respond(w http.ResponseWriter, body string) {
@@ -28,17 +29,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !fi.IsDir() {
-		content, err := ioutil.ReadFile(path)
-		if err != nil {
-			respond(w, fmt.Sprintf("can't read file %s", path))
-			return
-		}
-		// get content type
 		mimeType := mime.TypeByExtension(filepath.Ext(path))
 		if mimeType != "" {
 			w.Header().Set("content-type", mimeType)
 		}
-		w.Write(content)
+		file, err := os.Open(path)
+		if err != nil {
+			respond(w, fmt.Sprintf("can't read file %s", path))
+			return
+		}
+		_, err = io.Copy(w, file)
+		if err != nil {
+			respond(w, fmt.Sprintf("can't pipe file %s", path))
+			return
+		}
 		return
 	}
 	// directory
